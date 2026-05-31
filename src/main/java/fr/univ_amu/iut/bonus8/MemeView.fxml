@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="fr.univ_amu.iut.bonus8.MemeController"
+      spacing="10"
+      style="-fx-padding: 16; -fx-min-width: 420;">
+
+  <Label text="Générateur de mème (MVVM + Canvas)"
+         style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+
+  <Label text="Texte du haut" />
+  <TextField fx:id="champHaut" promptText="Quand le PR détecte une pipistrelle..." />
+
+  <Label text="Texte du bas" />
+  <TextField fx:id="champBas" promptText="...à 3h du matin" />
+
+  <Canvas fx:id="canvas" width="480" height="320" />
+</VBox>

@@ -1,0 +1,810 @@
+# GitHub Classroom autograding workflow.
+# Le bloc autograding (steps Classroom + reporter) est régénéré par
+# update-autograding.sh en fonction des sous-paquets d'exercices
+# détectés. Ne pas éditer à la main le bloc entre marqueurs.
+name: GitHub Classroom Workflow
+
+# Le calcul de note ne tourne que sur main : un exercice n'est livré qu'au
+# moment du merge. Les pushes sur les feature branches (exerciceN) restent
+# couverts par maven.yml (compilation + tests), qui suffit pour le feedback
+# pédagogique. workflow_dispatch reste dispo pour un regrade manuel.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  build:
+    name: Autograding
+    if: github.repository != 'IUTInfoAix-R202/template-tp-javafx'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Historique complet pour que `git diff $BEFORE..HEAD` fonctionne
+          # dans le step de scope (sans ça, on tomberait sur ALL à chaque push).
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          # JavaFX 26 vient des deps Maven org.openjfx ; la Headless Platform
+          # (glass.platform=Headless) est 100 % logicielle, pas besoin de jdk+fx.
+          cache: maven
+
+      #@@@AUTOGRADING-BEGIN@@@ (généré par update-autograding.sh, ne pas éditer à la main)
+      - name: Compilation
+        id: compilation
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: Compilation
+          setup-command: ""
+          command: ./mvnw -B -q compile
+          timeout: 5
+          max-score: 100
+
+      - name: Restaurer le cache des rapports Surefire
+        id: surefire_cache
+        uses: actions/cache/restore@v5
+        with:
+          path: target/surefire-reports
+          key: surefire-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            surefire-${{ github.ref_name }}-
+            surefire-main-
+
+      - name: Détecter les exercices impactés
+        id: scope
+        run: |
+          set +e
+          BEFORE="${{ github.event.before }}"
+          # Cache vide (premier run, expiration GHA) -> regrade complet sinon les
+          # XMLs absents donneraient un score 0 à tout le monde.
+          if [ ! -d target/surefire-reports ] || [ -z "$(ls -A target/surefire-reports 2>/dev/null)" ]; then
+            echo "filter=ALL" >> "$GITHUB_OUTPUT"
+            echo "reason=cache des rapports absent ou expiré" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Premier push sur la branche, ou commit base introuvable -> tout regrader
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "filter=ALL" >> "$GITHUB_OUTPUT"
+            echo "reason=premier push sur la branche ou commit base introuvable" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Fichiers globaux : invalident le cache (regrade complet)
+          if git diff --name-only "$BEFORE" HEAD -- \
+              pom.xml \
+              '.github/workflows/**' \
+              '*.sh' \
+              'src/main/java/fr/univ_amu/iut/App.java' \
+              'src/main/java/fr/univ_amu/iut/module-info.java' \
+              'src/test/java/fr/univ_amu/iut/AppTest.java' \
+              | grep -q .; then
+            echo "filter=ALL" >> "$GITHUB_OUTPUT"
+            echo "reason=fichier global modifié (pom.xml / App / workflows / scripts)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Détection fine : paquets exerciceN / bonusN modifiés
+          pkgs=$(git diff --name-only "$BEFORE" HEAD -- \
+              'src/main/java/fr/univ_amu/iut/exercice*/**' \
+              'src/test/java/fr/univ_amu/iut/exercice*/**' \
+              'src/main/java/fr/univ_amu/iut/bonus*/**' \
+              'src/test/java/fr/univ_amu/iut/bonus*/**' \
+              | grep -oE 'fr/univ_amu/iut/(exercice[0-9]+|bonus[0-9]+)' \
+              | sort -u | tr '/' '.')
+          if [ -z "$pkgs" ]; then
+            echo "filter=NONE" >> "$GITHUB_OUTPUT"
+            echo "reason=aucune source d'exercice modifiée (mvnw test sauté, scores restaurés du cache)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Énumère les classes de test des paquets impactés (FQCN explicites)
+          classes=""
+          for pkg in $pkgs; do
+            pkg_dir="src/test/java/$(echo "$pkg" | tr '.' '/')"
+            while IFS= read -r f; do
+              cls=$(basename "$f" .java)
+              classes="${classes}${classes:+,}${pkg}.${cls}"
+            done < <(find "$pkg_dir" -type f -name '*.java' 2>/dev/null)
+          done
+          if [ -z "$classes" ]; then
+            echo "filter=NONE" >> "$GITHUB_OUTPUT"
+            echo "reason=paquets modifiés mais aucune classe de test trouvée" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "filter=$classes" >> "$GITHUB_OUTPUT"
+          echo "reason=paquets impactés : $(echo $pkgs | tr '\\n' ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: Lancer les tests impactés
+        id: run_tests
+        if: steps.scope.outputs.filter != 'NONE'
+        continue-on-error: true
+        run: |
+          echo "Scope : ${{ steps.scope.outputs.reason }}"
+          if [ "${{ steps.scope.outputs.filter }}" = "ALL" ]; then
+            ./mvnw -B test -DfailIfNoTests=false
+          else
+            ./mvnw -B test -Dtest='${{ steps.scope.outputs.filter }}' -DfailIfNoTests=false
+          fi
+
+
+      - name: "exercice1 : au_demarrage_l_apercu_reflete_le_texte_initial"
+        id: exercice1_au_demarrage_l_apercu_reflete_le_texte_initial
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice1 : au_demarrage_l_apercu_reflete_le_texte_initial"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice1.MessageControllerTest au_demarrage_l_apercu_reflete_le_texte_initial
+          timeout: 5
+          max-score: 26
+
+      - name: "exercice1 : saisir_dans_le_champ_met_a_jour_l_apercu"
+        id: exercice1_saisir_dans_le_champ_met_a_jour_l_apercu
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice1 : saisir_dans_le_champ_met_a_jour_l_apercu"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice1.MessageControllerTest saisir_dans_le_champ_met_a_jour_l_apercu
+          timeout: 5
+          max-score: 26
+
+      - name: "exercice1 : au_demarrage_le_texte_reflete_la_valeur_du_modele"
+        id: exercice1_au_demarrage_le_texte_reflete_la_valeur_du_modele
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice1 : au_demarrage_le_texte_reflete_la_valeur_du_modele"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice1.MessageViewModelTest au_demarrage_le_texte_reflete_la_valeur_du_modele
+          timeout: 5
+          max-score: 26
+
+      - name: "exercice1 : modifier_la_propriete_met_a_jour_le_modele"
+        id: exercice1_modifier_la_propriete_met_a_jour_le_modele
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice1 : modifier_la_propriete_met_a_jour_le_modele"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice1.MessageViewModelTest modifier_la_propriete_met_a_jour_le_modele
+          timeout: 5
+          max-score: 26
+
+      - name: "exercice1 : l_apercu_derive_automatiquement_du_texte"
+        id: exercice1_l_apercu_derive_automatiquement_du_texte
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice1 : l_apercu_derive_automatiquement_du_texte"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice1.MessageViewModelTest l_apercu_derive_automatiquement_du_texte
+          timeout: 5
+          max-score: 25
+
+      - name: "exercice2 : au_demarrage_le_label_affiche_zero"
+        id: exercice2_au_demarrage_le_label_affiche_zero
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice2 : au_demarrage_le_label_affiche_zero"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice2.CompteurControllerTest au_demarrage_le_label_affiche_zero
+          timeout: 5
+          max-score: 15
+
+      - name: "exercice2 : cliquer_sur_plus_incremente_le_label"
+        id: exercice2_cliquer_sur_plus_incremente_le_label
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice2 : cliquer_sur_plus_incremente_le_label"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice2.CompteurControllerTest cliquer_sur_plus_incremente_le_label
+          timeout: 5
+          max-score: 15
+
+      - name: "exercice2 : cliquer_sur_moins_decremente_le_label"
+        id: exercice2_cliquer_sur_moins_decremente_le_label
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice2 : cliquer_sur_moins_decremente_le_label"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice2.CompteurControllerTest cliquer_sur_moins_decremente_le_label
+          timeout: 5
+          max-score: 15
+
+      - name: "exercice2 : cliquer_sur_reinitialiser_remet_a_zero"
+        id: exercice2_cliquer_sur_reinitialiser_remet_a_zero
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice2 : cliquer_sur_reinitialiser_remet_a_zero"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice2.CompteurControllerTest cliquer_sur_reinitialiser_remet_a_zero
+          timeout: 5
+          max-score: 14
+
+      - name: "exercice2 : au_demarrage_le_message_affiche_zero"
+        id: exercice2_au_demarrage_le_message_affiche_zero
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice2 : au_demarrage_le_message_affiche_zero"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice2.CompteurViewModelTest au_demarrage_le_message_affiche_zero
+          timeout: 5
+          max-score: 14
+
+      - name: "exercice2 : incrementer_augmente_le_compteur_de_un"
+        id: exercice2_incrementer_augmente_le_compteur_de_un
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice2 : incrementer_augmente_le_compteur_de_un"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice2.CompteurViewModelTest incrementer_augmente_le_compteur_de_un
+          timeout: 5
+          max-score: 14
+
+      - name: "exercice2 : plusieurs_increments_se_cumulent"
+        id: exercice2_plusieurs_increments_se_cumulent
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice2 : plusieurs_increments_se_cumulent"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice2.CompteurViewModelTest plusieurs_increments_se_cumulent
+          timeout: 5
+          max-score: 14
+
+      - name: "exercice2 : decrementer_diminue_le_compteur"
+        id: exercice2_decrementer_diminue_le_compteur
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice2 : decrementer_diminue_le_compteur"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice2.CompteurViewModelTest decrementer_diminue_le_compteur
+          timeout: 5
+          max-score: 14
+
+      - name: "exercice2 : reinitialiser_remet_le_compteur_a_zero"
+        id: exercice2_reinitialiser_remet_le_compteur_a_zero
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice2 : reinitialiser_remet_le_compteur_a_zero"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice2.CompteurViewModelTest reinitialiser_remet_le_compteur_a_zero
+          timeout: 5
+          max-score: 14
+
+      - name: "exercice3 : au_demarrage_le_bouton_est_desactive"
+        id: exercice3_au_demarrage_le_bouton_est_desactive
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice3 : au_demarrage_le_bouton_est_desactive"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice3.FormulaireConnexionControllerTest au_demarrage_le_bouton_est_desactive
+          timeout: 5
+          max-score: 17
+
+      - name: "exercice3 : remplir_les_deux_champs_active_le_bouton"
+        id: exercice3_remplir_les_deux_champs_active_le_bouton
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice3 : remplir_les_deux_champs_active_le_bouton"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice3.FormulaireConnexionControllerTest remplir_les_deux_champs_active_le_bouton
+          timeout: 5
+          max-score: 16
+
+      - name: "exercice3 : se_connecter_affiche_le_message_de_bienvenue"
+        id: exercice3_se_connecter_affiche_le_message_de_bienvenue
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice3 : se_connecter_affiche_le_message_de_bienvenue"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice3.FormulaireConnexionControllerTest se_connecter_affiche_le_message_de_bienvenue
+          timeout: 5
+          max-score: 16
+
+      - name: "exercice3 : le_formulaire_n_est_pas_validable_au_demarrage"
+        id: exercice3_le_formulaire_n_est_pas_validable_au_demarrage
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice3 : le_formulaire_n_est_pas_validable_au_demarrage"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice3.FormulaireConnexionViewModelTest le_formulaire_n_est_pas_validable_au_demarrage
+          timeout: 5
+          max-score: 16
+
+      - name: "exercice3 : le_formulaire_devient_validable_quand_les_deux_champs_sont_remplis"
+        id: exercice3_le_formulaire_devient_validable_quand_les_deux_champs_sont_remplis
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice3 : le_formulaire_devient_validable_quand_les_deux_champs_sont_remplis"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice3.FormulaireConnexionViewModelTest le_formulaire_devient_validable_quand_les_deux_champs_sont_remplis
+          timeout: 5
+          max-score: 16
+
+      - name: "exercice3 : une_connexion_reussie_affiche_un_message_de_bienvenue"
+        id: exercice3_une_connexion_reussie_affiche_un_message_de_bienvenue
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice3 : une_connexion_reussie_affiche_un_message_de_bienvenue"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice3.FormulaireConnexionViewModelTest une_connexion_reussie_affiche_un_message_de_bienvenue
+          timeout: 5
+          max-score: 16
+
+      - name: "exercice3 : une_connexion_refusee_affiche_un_message_d_erreur"
+        id: exercice3_une_connexion_refusee_affiche_un_message_d_erreur
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice3 : une_connexion_refusee_affiche_un_message_d_erreur"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice3.FormulaireConnexionViewModelTest une_connexion_refusee_affiche_un_message_d_erreur
+          timeout: 5
+          max-score: 16
+
+      - name: "exercice3 : le_service_simple_reconnait_le_compte_de_demonstration"
+        id: exercice3_le_service_simple_reconnait_le_compte_de_demonstration
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice3 : le_service_simple_reconnait_le_compte_de_demonstration"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice3.FormulaireConnexionViewModelTest le_service_simple_reconnait_le_compte_de_demonstration
+          timeout: 5
+          max-score: 16
+
+      - name: "exercice4 : le_module_lie_serviceauth_a_son_implementation_simple"
+        id: exercice4_le_module_lie_serviceauth_a_son_implementation_simple
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice4 : le_module_lie_serviceauth_a_son_implementation_simple"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice4.AppModuleTest le_module_lie_serviceauth_a_son_implementation_simple
+          timeout: 5
+          max-score: 22
+
+      - name: "exercice4 : guice_construit_le_viewmodel_avec_son_service_injecte"
+        id: exercice4_guice_construit_le_viewmodel_avec_son_service_injecte
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice4 : guice_construit_le_viewmodel_avec_son_service_injecte"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice4.AppModuleTest guice_construit_le_viewmodel_avec_son_service_injecte
+          timeout: 5
+          max-score: 22
+
+      - name: "exercice4 : la_fenetre_s_ouvre_avec_le_formulaire"
+        id: exercice4_la_fenetre_s_ouvre_avec_le_formulaire
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice4 : la_fenetre_s_ouvre_avec_le_formulaire"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice4.ConnexionControllerTest la_fenetre_s_ouvre_avec_le_formulaire
+          timeout: 5
+          max-score: 22
+
+      - name: "exercice4 : au_demarrage_le_bouton_est_desactive"
+        id: exercice4_au_demarrage_le_bouton_est_desactive
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice4 : au_demarrage_le_bouton_est_desactive"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice4.ConnexionControllerTest au_demarrage_le_bouton_est_desactive
+          timeout: 5
+          max-score: 21
+
+      - name: "exercice4 : se_connecter_via_guice_affiche_la_bienvenue"
+        id: exercice4_se_connecter_via_guice_affiche_la_bienvenue
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice4 : se_connecter_via_guice_affiche_la_bienvenue"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice4.ConnexionControllerTest se_connecter_via_guice_affiche_la_bienvenue
+          timeout: 5
+          max-score: 21
+
+      - name: "exercice4 : un_mauvais_mot_de_passe_affiche_l_erreur"
+        id: exercice4_un_mauvais_mot_de_passe_affiche_l_erreur
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice4 : un_mauvais_mot_de_passe_affiche_l_erreur"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice4.ConnexionControllerTest un_mauvais_mot_de_passe_affiche_l_erreur
+          timeout: 5
+          max-score: 21
+
+      - name: "exercice5 : au_demarrage_la_table_affiche_les_pokemon_de_depart"
+        id: exercice5_au_demarrage_la_table_affiche_les_pokemon_de_depart
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : au_demarrage_la_table_affiche_les_pokemon_de_depart"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonControllerTest au_demarrage_la_table_affiche_les_pokemon_de_depart
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : les_colonnes_affichent_les_donnees_du_premier_pokemon"
+        id: exercice5_les_colonnes_affichent_les_donnees_du_premier_pokemon
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : les_colonnes_affichent_les_donnees_du_premier_pokemon"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonControllerTest les_colonnes_affichent_les_donnees_du_premier_pokemon
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : le_label_resume_affiche_le_compte"
+        id: exercice5_le_label_resume_affiche_le_compte
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : le_label_resume_affiche_le_compte"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonControllerTest le_label_resume_affiche_le_compte
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : le_bouton_ajouter_est_desactive_sans_saisie"
+        id: exercice5_le_bouton_ajouter_est_desactive_sans_saisie
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : le_bouton_ajouter_est_desactive_sans_saisie"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonControllerTest le_bouton_ajouter_est_desactive_sans_saisie
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : ajouter_un_pokemon_par_son_nom_ajoute_une_ligne"
+        id: exercice5_ajouter_un_pokemon_par_son_nom_ajoute_une_ligne
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : ajouter_un_pokemon_par_son_nom_ajoute_une_ligne"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonControllerTest ajouter_un_pokemon_par_son_nom_ajoute_une_ligne
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : remplir_le_champ_active_le_bouton"
+        id: exercice5_remplir_le_champ_active_le_bouton
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : remplir_le_champ_active_le_bouton"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonControllerTest remplir_le_champ_active_le_bouton
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : un_nom_inconnu_affiche_un_statut_sans_ajouter"
+        id: exercice5_un_nom_inconnu_affiche_un_statut_sans_ajouter
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : un_nom_inconnu_affiche_un_statut_sans_ajouter"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonControllerTest un_nom_inconnu_affiche_un_statut_sans_ajouter
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : au_demarrage_la_liste_contient_les_pokemon_de_depart"
+        id: exercice5_au_demarrage_la_liste_contient_les_pokemon_de_depart
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : au_demarrage_la_liste_contient_les_pokemon_de_depart"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonViewModelTest au_demarrage_la_liste_contient_les_pokemon_de_depart
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : le_resume_reflete_le_nombre_de_pokemon"
+        id: exercice5_le_resume_reflete_le_nombre_de_pokemon
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : le_resume_reflete_le_nombre_de_pokemon"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonViewModelTest le_resume_reflete_le_nombre_de_pokemon
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : ajouter_par_nom_ajoute_le_pokemon_trouve_et_met_a_jour_le_resume"
+        id: exercice5_ajouter_par_nom_ajoute_le_pokemon_trouve_et_met_a_jour_le_resume
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : ajouter_par_nom_ajoute_le_pokemon_trouve_et_met_a_jour_le_resume"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonViewModelTest ajouter_par_nom_ajoute_le_pokemon_trouve_et_met_a_jour_le_resume
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : ajouter_un_nom_inconnu_laisse_la_liste_intacte_et_affiche_un_statut"
+        id: exercice5_ajouter_un_nom_inconnu_laisse_la_liste_intacte_et_affiche_un_statut
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : ajouter_un_nom_inconnu_laisse_la_liste_intacte_et_affiche_un_statut"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonViewModelTest ajouter_un_nom_inconnu_laisse_la_liste_intacte_et_affiche_un_statut
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice5 : ajouter_un_pokemon_deja_present_ne_le_duplique_pas"
+        id: exercice5_ajouter_un_pokemon_deja_present_ne_le_duplique_pas
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : ajouter_un_pokemon_deja_present_ne_le_duplique_pas"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonViewModelTest ajouter_un_pokemon_deja_present_ne_le_duplique_pas
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice5 : la_recherche_ignore_la_casse_et_les_accents"
+        id: exercice5_la_recherche_ignore_la_casse_et_les_accents
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice5 : la_recherche_ignore_la_casse_et_les_accents"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice5.PokemonViewModelTest la_recherche_ignore_la_casse_et_les_accents
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice6 : le_journal_est_un_singleton_partage"
+        id: exercice6_le_journal_est_un_singleton_partage
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice6 : le_journal_est_un_singleton_partage"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice6.Exercice6ModuleTest le_journal_est_un_singleton_partage
+          timeout: 5
+          max-score: 26
+
+      - name: "exercice6 : le_nom_choisit_l_implementation_du_notifieur"
+        id: exercice6_le_nom_choisit_l_implementation_du_notifieur
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice6 : le_nom_choisit_l_implementation_du_notifieur"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice6.Exercice6ModuleTest le_nom_choisit_l_implementation_du_notifieur
+          timeout: 5
+          max-score: 26
+
+      - name: "exercice6 : un_module_de_test_peut_injecter_un_mock"
+        id: exercice6_un_module_de_test_peut_injecter_un_mock
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice6 : un_module_de_test_peut_injecter_un_mock"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice6.Exercice6ModuleTest un_module_de_test_peut_injecter_un_mock
+          timeout: 5
+          max-score: 26
+
+      - name: "exercice6 : le_service_surveillance_se_construit_avec_le_notifieur_nomme"
+        id: exercice6_le_service_surveillance_se_construit_avec_le_notifieur_nomme
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice6 : le_service_surveillance_se_construit_avec_le_notifieur_nomme"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice6.Exercice6ModuleTest le_service_surveillance_se_construit_avec_le_notifieur_nomme
+          timeout: 5
+          max-score: 25
+
+      - name: "exercice6 : le_journal_singleton_cumule_les_evenements_de_plusieurs_services"
+        id: exercice6_le_journal_singleton_cumule_les_evenements_de_plusieurs_services
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice6 : le_journal_singleton_cumule_les_evenements_de_plusieurs_services"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice6.Exercice6ModuleTest le_journal_singleton_cumule_les_evenements_de_plusieurs_services
+          timeout: 5
+          max-score: 25
+
+      - name: "exercice7 : la_table_affiche_les_dix_sequences"
+        id: exercice7_la_table_affiche_les_dix_sequences
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : la_table_affiche_les_dix_sequences"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationControllerTest la_table_affiche_les_dix_sequences
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice7 : le_bouton_ecouter_est_desactive_sans_selection"
+        id: exercice7_le_bouton_ecouter_est_desactive_sans_selection
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : le_bouton_ecouter_est_desactive_sans_selection"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationControllerTest le_bouton_ecouter_est_desactive_sans_selection
+          timeout: 5
+          max-score: 10
+
+      - name: "exercice7 : selectionner_une_ligne_active_le_bouton_et_decrit_la_selection"
+        id: exercice7_selectionner_une_ligne_active_le_bouton_et_decrit_la_selection
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : selectionner_une_ligne_active_le_bouton_et_decrit_la_selection"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationControllerTest selectionner_une_ligne_active_le_bouton_et_decrit_la_selection
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : ecouter_passe_la_sequence_au_statut_ecoutee"
+        id: exercice7_ecouter_passe_la_sequence_au_statut_ecoutee
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : ecouter_passe_la_sequence_au_statut_ecoutee"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationControllerTest ecouter_passe_la_sequence_au_statut_ecoutee
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : la_choicebox_propose_les_trois_verdicts"
+        id: exercice7_la_choicebox_propose_les_trois_verdicts
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : la_choicebox_propose_les_trois_verdicts"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationControllerTest la_choicebox_propose_les_trois_verdicts
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : enregistrer_un_verdict_via_la_vue_met_a_jour_le_libelle"
+        id: exercice7_enregistrer_un_verdict_via_la_vue_met_a_jour_le_libelle
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : enregistrer_un_verdict_via_la_vue_met_a_jour_le_libelle"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationControllerTest enregistrer_un_verdict_via_la_vue_met_a_jour_le_libelle
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : la_nuit_contient_dix_sequences"
+        id: exercice7_la_nuit_contient_dix_sequences
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : la_nuit_contient_dix_sequences"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationViewModelTest la_nuit_contient_dix_sequences
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : sans_selection_le_libelle_invite_a_choisir_et_l_ecoute_est_impossible"
+        id: exercice7_sans_selection_le_libelle_invite_a_choisir_et_l_ecoute_est_impossible
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : sans_selection_le_libelle_invite_a_choisir_et_l_ecoute_est_impossible"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationViewModelTest sans_selection_le_libelle_invite_a_choisir_et_l_ecoute_est_impossible
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : selectionner_une_sequence_active_l_ecoute_et_decrit_la_selection"
+        id: exercice7_selectionner_une_sequence_active_l_ecoute_et_decrit_la_selection
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : selectionner_une_sequence_active_l_ecoute_et_decrit_la_selection"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationViewModelTest selectionner_une_sequence_active_l_ecoute_et_decrit_la_selection
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : ecouter_passe_la_sequence_selectionnee_au_statut_ecoutee"
+        id: exercice7_ecouter_passe_la_sequence_selectionnee_au_statut_ecoutee
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : ecouter_passe_la_sequence_selectionnee_au_statut_ecoutee"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationViewModelTest ecouter_passe_la_sequence_selectionnee_au_statut_ecoutee
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : les_trois_verdicts_sont_proposes"
+        id: exercice7_les_trois_verdicts_sont_proposes
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : les_trois_verdicts_sont_proposes"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationViewModelTest les_trois_verdicts_sont_proposes
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : le_libelle_du_verdict_invite_a_saisir_tant_que_rien_n_est_enregistre"
+        id: exercice7_le_libelle_du_verdict_invite_a_saisir_tant_que_rien_n_est_enregistre
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : le_libelle_du_verdict_invite_a_saisir_tant_que_rien_n_est_enregistre"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationViewModelTest le_libelle_du_verdict_invite_a_saisir_tant_que_rien_n_est_enregistre
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : enregistrer_un_verdict_met_a_jour_le_libelle"
+        id: exercice7_enregistrer_un_verdict_met_a_jour_le_libelle
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : enregistrer_un_verdict_met_a_jour_le_libelle"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationViewModelTest enregistrer_un_verdict_met_a_jour_le_libelle
+          timeout: 5
+          max-score: 9
+
+      - name: "exercice7 : le_commentaire_est_relie_au_modele"
+        id: exercice7_le_commentaire_est_relie_au_modele
+        uses: IUTInfoAix-R202/autograding-command-grader@main
+        with:
+          test-name: "exercice7 : le_commentaire_est_relie_au_modele"
+          setup-command: ""
+          command: ./grade-test.sh fr.univ_amu.iut.exercice7.QualificationViewModelTest le_commentaire_est_relie_au_modele
+          timeout: 5
+          max-score: 9
+
+      - name: Autograding Reporter
+        uses: IUTInfoAix-R202/autograding-grading-reporter@main
+        continue-on-error: true
+        env:
+          COMPILATION_RESULTS: "${{ steps.compilation.outputs.result }}"
+          EXERCICE1_AU_DEMARRAGE_L_APERCU_REFLETE_LE_TEXTE_INITIAL_RESULTS: "${{ steps.exercice1_au_demarrage_l_apercu_reflete_le_texte_initial.outputs.result }}"
+          EXERCICE1_SAISIR_DANS_LE_CHAMP_MET_A_JOUR_L_APERCU_RESULTS: "${{ steps.exercice1_saisir_dans_le_champ_met_a_jour_l_apercu.outputs.result }}"
+          EXERCICE1_AU_DEMARRAGE_LE_TEXTE_REFLETE_LA_VALEUR_DU_MODELE_RESULTS: "${{ steps.exercice1_au_demarrage_le_texte_reflete_la_valeur_du_modele.outputs.result }}"
+          EXERCICE1_MODIFIER_LA_PROPRIETE_MET_A_JOUR_LE_MODELE_RESULTS: "${{ steps.exercice1_modifier_la_propriete_met_a_jour_le_modele.outputs.result }}"
+          EXERCICE1_L_APERCU_DERIVE_AUTOMATIQUEMENT_DU_TEXTE_RESULTS: "${{ steps.exercice1_l_apercu_derive_automatiquement_du_texte.outputs.result }}"
+          EXERCICE2_AU_DEMARRAGE_LE_LABEL_AFFICHE_ZERO_RESULTS: "${{ steps.exercice2_au_demarrage_le_label_affiche_zero.outputs.result }}"
+          EXERCICE2_CLIQUER_SUR_PLUS_INCREMENTE_LE_LABEL_RESULTS: "${{ steps.exercice2_cliquer_sur_plus_incremente_le_label.outputs.result }}"
+          EXERCICE2_CLIQUER_SUR_MOINS_DECREMENTE_LE_LABEL_RESULTS: "${{ steps.exercice2_cliquer_sur_moins_decremente_le_label.outputs.result }}"
+          EXERCICE2_CLIQUER_SUR_REINITIALISER_REMET_A_ZERO_RESULTS: "${{ steps.exercice2_cliquer_sur_reinitialiser_remet_a_zero.outputs.result }}"
+          EXERCICE2_AU_DEMARRAGE_LE_MESSAGE_AFFICHE_ZERO_RESULTS: "${{ steps.exercice2_au_demarrage_le_message_affiche_zero.outputs.result }}"
+          EXERCICE2_INCREMENTER_AUGMENTE_LE_COMPTEUR_DE_UN_RESULTS: "${{ steps.exercice2_incrementer_augmente_le_compteur_de_un.outputs.result }}"
+          EXERCICE2_PLUSIEURS_INCREMENTS_SE_CUMULENT_RESULTS: "${{ steps.exercice2_plusieurs_increments_se_cumulent.outputs.result }}"
+          EXERCICE2_DECREMENTER_DIMINUE_LE_COMPTEUR_RESULTS: "${{ steps.exercice2_decrementer_diminue_le_compteur.outputs.result }}"
+          EXERCICE2_REINITIALISER_REMET_LE_COMPTEUR_A_ZERO_RESULTS: "${{ steps.exercice2_reinitialiser_remet_le_compteur_a_zero.outputs.result }}"
+          EXERCICE3_AU_DEMARRAGE_LE_BOUTON_EST_DESACTIVE_RESULTS: "${{ steps.exercice3_au_demarrage_le_bouton_est_desactive.outputs.result }}"
+          EXERCICE3_REMPLIR_LES_DEUX_CHAMPS_ACTIVE_LE_BOUTON_RESULTS: "${{ steps.exercice3_remplir_les_deux_champs_active_le_bouton.outputs.result }}"
+          EXERCICE3_SE_CONNECTER_AFFICHE_LE_MESSAGE_DE_BIENVENUE_RESULTS: "${{ steps.exercice3_se_connecter_affiche_le_message_de_bienvenue.outputs.result }}"
+          EXERCICE3_LE_FORMULAIRE_N_EST_PAS_VALIDABLE_AU_DEMARRAGE_RESULTS: "${{ steps.exercice3_le_formulaire_n_est_pas_validable_au_demarrage.outputs.result }}"
+          EXERCICE3_LE_FORMULAIRE_DEVIENT_VALIDABLE_QUAND_LES_DEUX_CHAMPS_SONT_REMPLIS_RESULTS: "${{ steps.exercice3_le_formulaire_devient_validable_quand_les_deux_champs_sont_remplis.outputs.result }}"
+          EXERCICE3_UNE_CONNEXION_REUSSIE_AFFICHE_UN_MESSAGE_DE_BIENVENUE_RESULTS: "${{ steps.exercice3_une_connexion_reussie_affiche_un_message_de_bienvenue.outputs.result }}"
+          EXERCICE3_UNE_CONNEXION_REFUSEE_AFFICHE_UN_MESSAGE_D_ERREUR_RESULTS: "${{ steps.exercice3_une_connexion_refusee_affiche_un_message_d_erreur.outputs.result }}"
+          EXERCICE3_LE_SERVICE_SIMPLE_RECONNAIT_LE_COMPTE_DE_DEMONSTRATION_RESULTS: "${{ steps.exercice3_le_service_simple_reconnait_le_compte_de_demonstration.outputs.result }}"
+          EXERCICE4_LE_MODULE_LIE_SERVICEAUTH_A_SON_IMPLEMENTATION_SIMPLE_RESULTS: "${{ steps.exercice4_le_module_lie_serviceauth_a_son_implementation_simple.outputs.result }}"
+          EXERCICE4_GUICE_CONSTRUIT_LE_VIEWMODEL_AVEC_SON_SERVICE_INJECTE_RESULTS: "${{ steps.exercice4_guice_construit_le_viewmodel_avec_son_service_injecte.outputs.result }}"
+          EXERCICE4_LA_FENETRE_S_OUVRE_AVEC_LE_FORMULAIRE_RESULTS: "${{ steps.exercice4_la_fenetre_s_ouvre_avec_le_formulaire.outputs.result }}"
+          EXERCICE4_AU_DEMARRAGE_LE_BOUTON_EST_DESACTIVE_RESULTS: "${{ steps.exercice4_au_demarrage_le_bouton_est_desactive.outputs.result }}"
+          EXERCICE4_SE_CONNECTER_VIA_GUICE_AFFICHE_LA_BIENVENUE_RESULTS: "${{ steps.exercice4_se_connecter_via_guice_affiche_la_bienvenue.outputs.result }}"
+          EXERCICE4_UN_MAUVAIS_MOT_DE_PASSE_AFFICHE_L_ERREUR_RESULTS: "${{ steps.exercice4_un_mauvais_mot_de_passe_affiche_l_erreur.outputs.result }}"
+          EXERCICE5_AU_DEMARRAGE_LA_TABLE_AFFICHE_LES_POKEMON_DE_DEPART_RESULTS: "${{ steps.exercice5_au_demarrage_la_table_affiche_les_pokemon_de_depart.outputs.result }}"
+          EXERCICE5_LES_COLONNES_AFFICHENT_LES_DONNEES_DU_PREMIER_POKEMON_RESULTS: "${{ steps.exercice5_les_colonnes_affichent_les_donnees_du_premier_pokemon.outputs.result }}"
+          EXERCICE5_LE_LABEL_RESUME_AFFICHE_LE_COMPTE_RESULTS: "${{ steps.exercice5_le_label_resume_affiche_le_compte.outputs.result }}"
+          EXERCICE5_LE_BOUTON_AJOUTER_EST_DESACTIVE_SANS_SAISIE_RESULTS: "${{ steps.exercice5_le_bouton_ajouter_est_desactive_sans_saisie.outputs.result }}"
+          EXERCICE5_AJOUTER_UN_POKEMON_PAR_SON_NOM_AJOUTE_UNE_LIGNE_RESULTS: "${{ steps.exercice5_ajouter_un_pokemon_par_son_nom_ajoute_une_ligne.outputs.result }}"
+          EXERCICE5_REMPLIR_LE_CHAMP_ACTIVE_LE_BOUTON_RESULTS: "${{ steps.exercice5_remplir_le_champ_active_le_bouton.outputs.result }}"
+          EXERCICE5_UN_NOM_INCONNU_AFFICHE_UN_STATUT_SANS_AJOUTER_RESULTS: "${{ steps.exercice5_un_nom_inconnu_affiche_un_statut_sans_ajouter.outputs.result }}"
+          EXERCICE5_AU_DEMARRAGE_LA_LISTE_CONTIENT_LES_POKEMON_DE_DEPART_RESULTS: "${{ steps.exercice5_au_demarrage_la_liste_contient_les_pokemon_de_depart.outputs.result }}"
+          EXERCICE5_LE_RESUME_REFLETE_LE_NOMBRE_DE_POKEMON_RESULTS: "${{ steps.exercice5_le_resume_reflete_le_nombre_de_pokemon.outputs.result }}"
+          EXERCICE5_AJOUTER_PAR_NOM_AJOUTE_LE_POKEMON_TROUVE_ET_MET_A_JOUR_LE_RESUME_RESULTS: "${{ steps.exercice5_ajouter_par_nom_ajoute_le_pokemon_trouve_et_met_a_jour_le_resume.outputs.result }}"
+          EXERCICE5_AJOUTER_UN_NOM_INCONNU_LAISSE_LA_LISTE_INTACTE_ET_AFFICHE_UN_STATUT_RESULTS: "${{ steps.exercice5_ajouter_un_nom_inconnu_laisse_la_liste_intacte_et_affiche_un_statut.outputs.result }}"
+          EXERCICE5_AJOUTER_UN_POKEMON_DEJA_PRESENT_NE_LE_DUPLIQUE_PAS_RESULTS: "${{ steps.exercice5_ajouter_un_pokemon_deja_present_ne_le_duplique_pas.outputs.result }}"
+          EXERCICE5_LA_RECHERCHE_IGNORE_LA_CASSE_ET_LES_ACCENTS_RESULTS: "${{ steps.exercice5_la_recherche_ignore_la_casse_et_les_accents.outputs.result }}"
+          EXERCICE6_LE_JOURNAL_EST_UN_SINGLETON_PARTAGE_RESULTS: "${{ steps.exercice6_le_journal_est_un_singleton_partage.outputs.result }}"
+          EXERCICE6_LE_NOM_CHOISIT_L_IMPLEMENTATION_DU_NOTIFIEUR_RESULTS: "${{ steps.exercice6_le_nom_choisit_l_implementation_du_notifieur.outputs.result }}"
+          EXERCICE6_UN_MODULE_DE_TEST_PEUT_INJECTER_UN_MOCK_RESULTS: "${{ steps.exercice6_un_module_de_test_peut_injecter_un_mock.outputs.result }}"
+          EXERCICE6_LE_SERVICE_SURVEILLANCE_SE_CONSTRUIT_AVEC_LE_NOTIFIEUR_NOMME_RESULTS: "${{ steps.exercice6_le_service_surveillance_se_construit_avec_le_notifieur_nomme.outputs.result }}"
+          EXERCICE6_LE_JOURNAL_SINGLETON_CUMULE_LES_EVENEMENTS_DE_PLUSIEURS_SERVICES_RESULTS: "${{ steps.exercice6_le_journal_singleton_cumule_les_evenements_de_plusieurs_services.outputs.result }}"
+          EXERCICE7_LA_TABLE_AFFICHE_LES_DIX_SEQUENCES_RESULTS: "${{ steps.exercice7_la_table_affiche_les_dix_sequences.outputs.result }}"
+          EXERCICE7_LE_BOUTON_ECOUTER_EST_DESACTIVE_SANS_SELECTION_RESULTS: "${{ steps.exercice7_le_bouton_ecouter_est_desactive_sans_selection.outputs.result }}"
+          EXERCICE7_SELECTIONNER_UNE_LIGNE_ACTIVE_LE_BOUTON_ET_DECRIT_LA_SELECTION_RESULTS: "${{ steps.exercice7_selectionner_une_ligne_active_le_bouton_et_decrit_la_selection.outputs.result }}"
+          EXERCICE7_ECOUTER_PASSE_LA_SEQUENCE_AU_STATUT_ECOUTEE_RESULTS: "${{ steps.exercice7_ecouter_passe_la_sequence_au_statut_ecoutee.outputs.result }}"
+          EXERCICE7_LA_CHOICEBOX_PROPOSE_LES_TROIS_VERDICTS_RESULTS: "${{ steps.exercice7_la_choicebox_propose_les_trois_verdicts.outputs.result }}"
+          EXERCICE7_ENREGISTRER_UN_VERDICT_VIA_LA_VUE_MET_A_JOUR_LE_LIBELLE_RESULTS: "${{ steps.exercice7_enregistrer_un_verdict_via_la_vue_met_a_jour_le_libelle.outputs.result }}"
+          EXERCICE7_LA_NUIT_CONTIENT_DIX_SEQUENCES_RESULTS: "${{ steps.exercice7_la_nuit_contient_dix_sequences.outputs.result }}"
+          EXERCICE7_SANS_SELECTION_LE_LIBELLE_INVITE_A_CHOISIR_ET_L_ECOUTE_EST_IMPOSSIBLE_RESULTS: "${{ steps.exercice7_sans_selection_le_libelle_invite_a_choisir_et_l_ecoute_est_impossible.outputs.result }}"
+          EXERCICE7_SELECTIONNER_UNE_SEQUENCE_ACTIVE_L_ECOUTE_ET_DECRIT_LA_SELECTION_RESULTS: "${{ steps.exercice7_selectionner_une_sequence_active_l_ecoute_et_decrit_la_selection.outputs.result }}"
+          EXERCICE7_ECOUTER_PASSE_LA_SEQUENCE_SELECTIONNEE_AU_STATUT_ECOUTEE_RESULTS: "${{ steps.exercice7_ecouter_passe_la_sequence_selectionnee_au_statut_ecoutee.outputs.result }}"
+          EXERCICE7_LES_TROIS_VERDICTS_SONT_PROPOSES_RESULTS: "${{ steps.exercice7_les_trois_verdicts_sont_proposes.outputs.result }}"
+          EXERCICE7_LE_LIBELLE_DU_VERDICT_INVITE_A_SAISIR_TANT_QUE_RIEN_N_EST_ENREGISTRE_RESULTS: "${{ steps.exercice7_le_libelle_du_verdict_invite_a_saisir_tant_que_rien_n_est_enregistre.outputs.result }}"
+          EXERCICE7_ENREGISTRER_UN_VERDICT_MET_A_JOUR_LE_LIBELLE_RESULTS: "${{ steps.exercice7_enregistrer_un_verdict_met_a_jour_le_libelle.outputs.result }}"
+          EXERCICE7_LE_COMMENTAIRE_EST_RELIE_AU_MODELE_RESULTS: "${{ steps.exercice7_le_commentaire_est_relie_au_modele.outputs.result }}"
+        with:
+          runners: compilation,exercice1_au_demarrage_l_apercu_reflete_le_texte_initial,exercice1_saisir_dans_le_champ_met_a_jour_l_apercu,exercice1_au_demarrage_le_texte_reflete_la_valeur_du_modele,exercice1_modifier_la_propriete_met_a_jour_le_modele,exercice1_l_apercu_derive_automatiquement_du_texte,exercice2_au_demarrage_le_label_affiche_zero,exercice2_cliquer_sur_plus_incremente_le_label,exercice2_cliquer_sur_moins_decremente_le_label,exercice2_cliquer_sur_reinitialiser_remet_a_zero,exercice2_au_demarrage_le_message_affiche_zero,exercice2_incrementer_augmente_le_compteur_de_un,exercice2_plusieurs_increments_se_cumulent,exercice2_decrementer_diminue_le_compteur,exercice2_reinitialiser_remet_le_compteur_a_zero,exercice3_au_demarrage_le_bouton_est_desactive,exercice3_remplir_les_deux_champs_active_le_bouton,exercice3_se_connecter_affiche_le_message_de_bienvenue,exercice3_le_formulaire_n_est_pas_validable_au_demarrage,exercice3_le_formulaire_devient_validable_quand_les_deux_champs_sont_remplis,exercice3_une_connexion_reussie_affiche_un_message_de_bienvenue,exercice3_une_connexion_refusee_affiche_un_message_d_erreur,exercice3_le_service_simple_reconnait_le_compte_de_demonstration,exercice4_le_module_lie_serviceauth_a_son_implementation_simple,exercice4_guice_construit_le_viewmodel_avec_son_service_injecte,exercice4_la_fenetre_s_ouvre_avec_le_formulaire,exercice4_au_demarrage_le_bouton_est_desactive,exercice4_se_connecter_via_guice_affiche_la_bienvenue,exercice4_un_mauvais_mot_de_passe_affiche_l_erreur,exercice5_au_demarrage_la_table_affiche_les_pokemon_de_depart,exercice5_les_colonnes_affichent_les_donnees_du_premier_pokemon,exercice5_le_label_resume_affiche_le_compte,exercice5_le_bouton_ajouter_est_desactive_sans_saisie,exercice5_ajouter_un_pokemon_par_son_nom_ajoute_une_ligne,exercice5_remplir_le_champ_active_le_bouton,exercice5_un_nom_inconnu_affiche_un_statut_sans_ajouter,exercice5_au_demarrage_la_liste_contient_les_pokemon_de_depart,exercice5_le_resume_reflete_le_nombre_de_pokemon,exercice5_ajouter_par_nom_ajoute_le_pokemon_trouve_et_met_a_jour_le_resume,exercice5_ajouter_un_nom_inconnu_laisse_la_liste_intacte_et_affiche_un_statut,exercice5_ajouter_un_pokemon_deja_present_ne_le_duplique_pas,exercice5_la_recherche_ignore_la_casse_et_les_accents,exercice6_le_journal_est_un_singleton_partage,exercice6_le_nom_choisit_l_implementation_du_notifieur,exercice6_un_module_de_test_peut_injecter_un_mock,exercice6_le_service_surveillance_se_construit_avec_le_notifieur_nomme,exercice6_le_journal_singleton_cumule_les_evenements_de_plusieurs_services,exercice7_la_table_affiche_les_dix_sequences,exercice7_le_bouton_ecouter_est_desactive_sans_selection,exercice7_selectionner_une_ligne_active_le_bouton_et_decrit_la_selection,exercice7_ecouter_passe_la_sequence_au_statut_ecoutee,exercice7_la_choicebox_propose_les_trois_verdicts,exercice7_enregistrer_un_verdict_via_la_vue_met_a_jour_le_libelle,exercice7_la_nuit_contient_dix_sequences,exercice7_sans_selection_le_libelle_invite_a_choisir_et_l_ecoute_est_impossible,exercice7_selectionner_une_sequence_active_l_ecoute_et_decrit_la_selection,exercice7_ecouter_passe_la_sequence_selectionnee_au_statut_ecoutee,exercice7_les_trois_verdicts_sont_proposes,exercice7_le_libelle_du_verdict_invite_a_saisir_tant_que_rien_n_est_enregistre,exercice7_enregistrer_un_verdict_met_a_jour_le_libelle,exercice7_le_commentaire_est_relie_au_modele
+
+      - name: Sauvegarder le cache des rapports Surefire
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: target/surefire-reports
+          key: surefire-${{ github.ref_name }}-${{ github.sha }}
+      #@@@AUTOGRADING-END@@@

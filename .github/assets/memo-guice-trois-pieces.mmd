@@ -1,0 +1,11 @@
+%%{init: {"htmlLabels": false, "flowchart": {"htmlLabels": false}}}%%
+flowchart LR
+    MOD["AppModule<br/>bind(Interface).to(Impl)"] --> INJ["Injector<br/>Guice.createInjector(module)"]
+    INJ -->|"setControllerFactory"| CTRL["Contrôleur<br/>@Inject ViewModel"]
+    CTRL --> VM["ViewModel<br/>@Inject ServiceAuth"]
+    VM --> SVC["ServiceAuthSimple"]
+    style MOD fill:#8e44ad,color:white
+    style INJ fill:#8e44ad,color:white
+    style CTRL fill:#7bb563,color:white
+    style VM fill:#e8a838,color:white
+    style SVC fill:#4a90d9,color:white

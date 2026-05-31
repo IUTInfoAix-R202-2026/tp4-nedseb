@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="240" viewBox="0 0 420 240">
+  <defs>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; }
+      .msg { font-size: 24px; font-weight: bold; fill: #2c3e50; }
+      .btn { font-size: 18px; fill: #2c3e50; }
+      .btn-sm { font-size: 13px; fill: #2c3e50; }
+      .id-tag { font-size: 10px; fill: #7f8c8d; font-style: italic; }
+    </style>
+  </defs>
+
+  <!-- Fond -->
+  <rect width="420" height="240" rx="8" ry="8" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1.5"/>
+
+  <!-- Fenetre (VBox racine, alignment=CENTER) -->
+  <rect x="20" y="20" width="380" height="200" rx="4" fill="white" stroke="#bdc3c7" stroke-width="1.5"/>
+  <text x="32" y="40" class="id-tag">VBox (alignment=CENTER) · fx:controller = CompteurController</text>
+
+  <!-- Message (label lié) -->
+  <text x="210" y="98" text-anchor="middle" class="msg">Compteur à 0</text>
+  <text x="210" y="120" text-anchor="middle" class="id-tag">#labelCompteur ← messageProperty()</text>
+
+  <!-- Rangee de commandes (HBox) -->
+  <rect x="94" y="142" width="44" height="40" rx="4" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="116" y="168" text-anchor="middle" class="btn">−</text>
+  <rect x="150" y="142" width="120" height="40" rx="4" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="210" y="167" text-anchor="middle" class="btn-sm">Réinitialiser</text>
+  <rect x="282" y="142" width="44" height="40" rx="4" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="304" y="168" text-anchor="middle" class="btn">+</text>
+
+  <!-- Annotation -->
+  <text x="210" y="208" text-anchor="middle" class="id-tag">chaque bouton appelle une commande du ViewModel (pattern Command)</text>
+</svg>

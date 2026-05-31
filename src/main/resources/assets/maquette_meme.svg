@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="540" viewBox="0 0 440 540">
+  <defs>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; }
+      .title { font-size: 15px; font-weight: bold; fill: #2c3e50; }
+      .lab { font-size: 12px; fill: #2c3e50; }
+      .field { font-size: 12px; fill: #2c3e50; }
+      .id-tag { font-size: 10px; fill: #7f8c8d; font-style: italic; }
+      .meme { font-family: 'Arial Black', Arial, sans-serif; font-size: 26px; font-weight: 900; fill: white; }
+    </style>
+    <linearGradient id="fond" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9fb3c8"/>
+      <stop offset="0.55" stop-color="#b7a99a"/>
+      <stop offset="1" stop-color="#6b6157"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fond -->
+  <rect width="440" height="540" rx="8" ry="8" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1.5"/>
+  <text x="20" y="32" class="title">Générateur de mème (MVVM + Canvas)</text>
+
+  <!-- Texte du haut -->
+  <text x="20" y="60" class="lab">Texte du haut</text>
+  <rect x="20" y="68" width="400" height="30" rx="3" fill="white" stroke="#4a90d9" stroke-width="1.6"/>
+  <text x="30" y="87" class="field">Quand le PR détecte</text>
+  <text x="20" y="118" class="id-tag">#champHaut ↔ texteHautProperty()</text>
+
+  <!-- Texte du bas -->
+  <text x="20" y="142" class="lab">Texte du bas</text>
+  <rect x="20" y="150" width="400" height="30" rx="3" fill="white" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="30" y="169" class="field">une pipistrelle</text>
+  <text x="20" y="200" class="id-tag">#champBas ↔ texteBasProperty()</text>
+
+  <!-- Canvas (image de fond + texte cerne) -->
+  <rect x="20" y="212" width="400" height="266" fill="url(#fond)" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="220" y="348" text-anchor="middle" font-size="12" fill="#ffffff" opacity="0.45" font-style="italic">image de fond (meme-fond.jpg)</text>
+  <text x="220" y="248" text-anchor="middle" class="meme" paint-order="stroke" stroke="#000" stroke-width="4">QUAND LE PR DÉTECTE</text>
+  <text x="220" y="456" text-anchor="middle" class="meme" paint-order="stroke" stroke="#000" stroke-width="4">UNE PIPISTRELLE</text>
+
+  <!-- Annotation -->
+  <text x="20" y="500" class="id-tag">Canvas (480×320) : le GraphicsContext dessine l'image de fond, puis les deux</text>
+  <text x="20" y="516" class="id-tag">textes (blanc cerné de noir). Le dessin est relancé à chaque frappe.</text>
+</svg>

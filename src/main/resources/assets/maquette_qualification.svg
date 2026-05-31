@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="648" viewBox="0 0 900 648">
+  <defs>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; }
+      .th { font-size: 12px; font-weight: bold; fill: #2c3e50; }
+      .td { font-size: 12px; fill: #2c3e50; }
+      .h2 { font-size: 15px; font-weight: bold; fill: #2c3e50; }
+      .lab { font-size: 12px; fill: #2c3e50; }
+      .strong { font-size: 12px; font-weight: bold; fill: #2c3e50; }
+      .muted { font-size: 11px; fill: #95a5a6; }
+      .btn { font-size: 12px; fill: #2c3e50; }
+      .tbtn { font-size: 10px; fill: #ecf0f1; }
+      .id-tag { font-size: 10px; fill: #7f8c8d; font-style: italic; }
+      .id-light { font-size: 10px; fill: #aab4c0; font-style: italic; }
+    </style>
+  </defs>
+
+  <!-- Fond -->
+  <rect width="900" height="648" rx="6" ry="6" fill="#fdfdfd" stroke="#888" stroke-width="1.5"/>
+
+  <!-- ===== Gauche : TableView<Sequence> ===== -->
+  <rect x="12" y="14" width="440" height="318" fill="white" stroke="#bdc3c7" stroke-width="1"/>
+  <rect x="12" y="14" width="440" height="26" fill="#e8e8e8" stroke="#bbb" stroke-width="1"/>
+  <text x="22" y="32" class="th">Heure</text>
+  <text x="110" y="32" class="th">Fréquence</text>
+  <text x="250" y="32" class="th">Durée</text>
+  <text x="340" y="32" class="th">Statut</text>
+  <line x1="100" y1="14" x2="100" y2="332" stroke="#e6e6e6"/>
+  <line x1="240" y1="14" x2="240" y2="332" stroke="#e6e6e6"/>
+  <line x1="330" y1="14" x2="330" y2="332" stroke="#e6e6e6"/>
+
+  <!-- Ligne selectionnee -->
+  <rect x="13" y="41" width="438" height="27" fill="#eaf3fb" stroke="#4a90d9" stroke-width="1"/>
+
+  <text x="22" y="59" class="td">20:00</text>  <text x="110" y="59" class="td">92,8 kHz</text> <text x="250" y="59" class="td">5 s</text> <text x="340" y="59" class="td">À écouter</text>
+  <text x="22" y="87" class="td">21:06</text>  <text x="110" y="87" class="td">88,3 kHz</text> <text x="250" y="87" class="td">5 s</text> <text x="340" y="87" class="td">À écouter</text>
+  <text x="22" y="115" class="td">22:12</text> <text x="110" y="115" class="td">50,9 kHz</text> <text x="250" y="115" class="td">5 s</text> <text x="340" y="115" class="td">À écouter</text>
+  <text x="22" y="143" class="td">23:18</text> <text x="110" y="143" class="td">47,7 kHz</text> <text x="250" y="143" class="td">5 s</text> <text x="340" y="143" class="td">À écouter</text>
+  <text x="22" y="171" class="td">00:24</text> <text x="110" y="171" class="td">86,6 kHz</text> <text x="250" y="171" class="td">5 s</text> <text x="340" y="171" class="td">À écouter</text>
+  <g stroke="#eee">
+    <line x1="13" y1="68" x2="451" y2="68"/><line x1="13" y1="96" x2="451" y2="96"/>
+    <line x1="13" y1="124" x2="451" y2="124"/><line x1="13" y1="152" x2="451" y2="152"/><line x1="13" y1="180" x2="451" y2="180"/>
+  </g>
+  <text x="12" y="350" class="id-tag">#tableSequences ← ObservableList&lt;Sequence&gt; (modèle : NuitVerification, injecté par Guice)</text>
+
+  <!-- ===== Droite : panneau de qualification ===== -->
+  <text x="474" y="30" class="h2">Vérifier la nuit d'enregistrement</text>
+  <text x="474" y="54" class="lab">Séquence 20:00 - 92,8 kHz</text>
+  <rect x="474" y="64" width="90" height="28" rx="4" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="519" y="83" text-anchor="middle" class="btn">Écouter</text>
+  <text x="574" y="83" class="id-tag">actif car une séquence est sélectionnée</text>
+  <line x1="474" y1="108" x2="888" y2="108" stroke="#e0e0e0"/>
+
+  <text x="474" y="128" class="lab">Commentaire de session</text>
+  <rect x="474" y="136" width="414" height="62" rx="3" fill="white" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="484" y="156" class="muted">vent fort vers 02:00, sons à vérifier…</text>
+  <line x1="474" y1="214" x2="888" y2="214" stroke="#e0e0e0"/>
+
+  <text x="474" y="234" class="lab">Verdict global</text>
+  <rect x="474" y="242" width="180" height="28" rx="3" fill="white" stroke="#bdc3c7" stroke-width="1"/>
+  <path d="M636,252 l10,0 l-5,8 z" fill="#7f8c8d"/>
+  <text x="660" y="261" class="muted">OK · Douteux · À jeter</text>
+  <rect x="474" y="282" width="164" height="28" rx="4" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="556" y="301" text-anchor="middle" class="btn">Enregistrer le verdict</text>
+  <text x="474" y="332" class="strong">Verdict global : (à saisir)</text>
+
+  <!-- ===== Bas : sonogramme / spectrogramme (AudioView) ===== -->
+  <text x="12" y="376" class="strong">Sonogramme / spectrogramme de la séquence</text>
+  <rect x="12" y="386" width="876" height="234" rx="3" fill="#1a1a2e" stroke="#3b3b55" stroke-width="1"/>
+
+  <!-- Barre d'outils -->
+  <g>
+    <rect x="22" y="394" width="56" height="20" rx="3" fill="#2c3e50"/><text x="50" y="408" text-anchor="middle" class="tbtn">Lecture</text>
+    <rect x="84" y="394" width="56" height="20" rx="3" fill="#2c3e50"/><text x="112" y="408" text-anchor="middle" class="tbtn">Temps −</text>
+    <rect x="146" y="394" width="56" height="20" rx="3" fill="#2c3e50"/><text x="174" y="408" text-anchor="middle" class="tbtn">Temps +</text>
+    <rect x="208" y="394" width="48" height="20" rx="3" fill="#2c3e50"/><text x="232" y="408" text-anchor="middle" class="tbtn">Fréq −</text>
+    <rect x="262" y="394" width="48" height="20" rx="3" fill="#2c3e50"/><text x="286" y="408" text-anchor="middle" class="tbtn">Fréq +</text>
+    <text x="330" y="408" class="tbtn">0,00 / 10,00 s</text>
+  </g>
+
+  <!-- Forme d'onde -->
+  <polyline points="22,448 70,432 110,460 150,426 190,462 230,430 270,458 310,434 360,460 410,428 470,462 520,432 580,458 640,430 700,460 760,434 820,458 866,444"
+            fill="none" stroke="#6db1ec" stroke-width="1.5"/>
+  <polyline points="22,452 70,468 110,440 150,474 190,438 230,470 270,442 310,466 360,440 410,472 470,438 520,468 580,442 640,470 700,440 760,466 820,442 866,456"
+            fill="none" stroke="#6db1ec" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Spectrogramme (schematique) -->
+  <rect x="22" y="486" width="844" height="120" fill="#241640"/>
+  <g fill="#8e44ad" opacity="0.85">
+    <ellipse cx="120" cy="560" rx="40" ry="34"/>
+    <ellipse cx="300" cy="552" rx="46" ry="38"/>
+    <ellipse cx="500" cy="560" rx="42" ry="34"/>
+    <ellipse cx="690" cy="554" rx="46" ry="36"/>
+  </g>
+  <g fill="#c39bd3" opacity="0.6">
+    <ellipse cx="120" cy="548" rx="22" ry="20"/>
+    <ellipse cx="300" cy="540" rx="26" ry="22"/>
+    <ellipse cx="500" cy="548" rx="24" ry="20"/>
+    <ellipse cx="690" cy="542" rx="26" ry="22"/>
+  </g>
+  <text x="28" y="500" class="id-light">kHz</text>
+  <!-- echelle de couleur -->
+  <rect x="846" y="492" width="14" height="108" fill="url(#cb)"/>
+  <defs>
+    <linearGradient id="cb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f9e79f"/>
+      <stop offset="0.5" stop-color="#c0392b"/>
+      <stop offset="1" stop-color="#1a1a2e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Annotation de synthese -->
+  <text x="12" y="638" class="id-tag">capstone : Guice assemble tout · ObservableList → TableView · libellés dérivés · commandes ecouterCommand() / enregistrerVerdictCommand() · AudioView fourni (SAÉ)</text>
+</svg>

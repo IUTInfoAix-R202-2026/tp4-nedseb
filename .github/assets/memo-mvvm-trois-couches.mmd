@@ -1,0 +1,10 @@
+%%{init: {"htmlLabels": false, "flowchart": {"htmlLabels": false}}}%%
+flowchart LR
+    M["Modèle<br/>(Message)<br/>données pures"]
+    VM["ViewModel<br/>(MessageViewModel)<br/>propriétés observables"]
+    V["Vue<br/>(FXML + Controller)<br/>composants JavaFX"]
+    M <-->|"getTexte / setTexte"| VM
+    VM <-->|"bind / bindBidirectional"| V
+    style M fill:#4a90d9,color:white
+    style VM fill:#e8a838,color:white
+    style V fill:#7bb563,color:white

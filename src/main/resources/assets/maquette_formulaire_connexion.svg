@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="362" viewBox="0 0 640 362">
+  <defs>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; }
+      .title { font-size: 13px; font-weight: bold; fill: #2c3e50; }
+      .ftitle { font-size: 12px; font-weight: bold; fill: #2c3e50; }
+      .lab { font-size: 11px; fill: #1a5276; }
+      .field { font-size: 12px; fill: #2c3e50; }
+      .ph { font-size: 12px; fill: #b0b8c0; }
+      .btn { font-size: 12px; font-weight: bold; }
+      .statut { font-size: 12px; fill: #1a5276; }
+      .id-tag { font-size: 10px; fill: #7f8c8d; font-style: italic; }
+    </style>
+  </defs>
+
+  <!-- Fond -->
+  <rect width="640" height="362" rx="8" ry="8" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1.5"/>
+  <text x="320" y="27" text-anchor="middle" class="title">Formulaire de connexion — la validation pilote le bouton (affordance)</text>
+
+  <!-- ===== Etat initial (champs vides) ===== -->
+  <rect x="20" y="44" width="290" height="272" rx="4" fill="white" stroke="#bdc3c7" stroke-width="1.5"/>
+  <text x="36" y="74" class="ftitle">VigieChiro PR Companion - Connexion</text>
+  <text x="36" y="100" class="lab">Identifiant</text>
+  <rect x="36" y="108" width="258" height="26" rx="3" fill="white" stroke="#4a90d9" stroke-width="1.6"/>
+  <text x="36" y="156" class="lab">Mot de passe</text>
+  <rect x="36" y="164" width="258" height="26" rx="3" fill="white" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="46" y="181" class="ph">********</text>
+  <rect x="36" y="204" width="104" height="30" rx="4" fill="#cccccc" stroke="#b3b3b3" stroke-width="1"/>
+  <text x="88" y="223" text-anchor="middle" class="btn" fill="#777777">Se connecter</text>
+  <text x="36" y="290" class="id-tag">champs vides → bouton désactivé (grisé)</text>
+
+  <!-- ===== Apres saisie (champs remplis) ===== -->
+  <rect x="330" y="44" width="290" height="272" rx="4" fill="white" stroke="#bdc3c7" stroke-width="1.5"/>
+  <text x="346" y="74" class="ftitle">VigieChiro PR Companion - Connexion</text>
+  <text x="346" y="100" class="lab">Identifiant</text>
+  <rect x="346" y="108" width="258" height="26" rx="3" fill="white" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="356" y="125" class="field">marie</text>
+  <text x="346" y="156" class="lab">Mot de passe</text>
+  <rect x="346" y="164" width="258" height="26" rx="3" fill="white" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="356" y="182" class="field" font-size="14" letter-spacing="1">•••••••••</text>
+  <rect x="346" y="204" width="104" height="30" rx="4" fill="#27ae60" stroke="#1e8449" stroke-width="1"/>
+  <text x="398" y="223" text-anchor="middle" class="btn" fill="white">Se connecter</text>
+  <text x="346" y="258" class="statut">Bienvenue marie !</text>
+  <text x="346" y="290" class="id-tag">champs remplis → bouton actif (vert) + statut</text>
+
+  <!-- Annotation de synthese -->
+  <text x="320" y="340" text-anchor="middle" class="id-tag">disableProperty ← validableProperty().not() · le style du bouton suit la même property (Nielsen #5 : on empêche l'erreur)</text>
+</svg>

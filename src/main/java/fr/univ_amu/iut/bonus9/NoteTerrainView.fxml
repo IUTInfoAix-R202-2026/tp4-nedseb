@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="fr.univ_amu.iut.bonus9.NoteTerrainController"
+      spacing="10"
+      style="-fx-padding: 16; -fx-min-width: 420;">
+
+  <Label text="Note de terrain (un ViewModel, plusieurs vues)"
+         style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+
+  <!-- Vue 1 : la saisie -->
+  <Label text="Saisie" />
+  <TextArea fx:id="zoneSaisie" prefRowCount="4" wrapText="true"
+            promptText="Météo, anomalie matérielle, observations..." />
+
+  <Separator />
+
+  <!-- Vue 2 : l'aperçu en direct -->
+  <Label text="Aperçu en direct" style="-fx-text-fill: #6a737d;" />
+  <Label fx:id="apercu" wrapText="true" style="-fx-font-style: italic;" />
+
+  <!-- Vue 3 : le compteur de caractères -->
+  <Label fx:id="compteur" style="-fx-text-fill: #1a5276;" />
+</VBox>

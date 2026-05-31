@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="306" viewBox="0 0 560 306">
+  <defs>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; }
+      .title { font-size: 15px; font-weight: bold; fill: #2c3e50; }
+      .lab { font-size: 12px; fill: #2c3e50; }
+      .muted { font-size: 12px; fill: #6a737d; }
+      .field { font-size: 12px; fill: #2c3e50; }
+      .ital { font-size: 12px; fill: #2c3e50; font-style: italic; }
+      .count { font-size: 12px; fill: #1a5276; }
+      .id-tag { font-size: 10px; fill: #7f8c8d; font-style: italic; }
+    </style>
+  </defs>
+
+  <!-- Fond -->
+  <rect width="560" height="306" rx="8" ry="8" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1.5"/>
+  <text x="20" y="30" class="title">Note de terrain (un ViewModel, plusieurs vues)</text>
+
+  <!-- Vue 1 : saisie -->
+  <text x="20" y="56" class="lab">Saisie</text>
+  <text x="70" y="56" class="id-tag">Vue 1 — #zoneSaisie ↔ noteProperty()</text>
+  <rect x="20" y="64" width="520" height="76" rx="3" fill="white" stroke="#4a90d9" stroke-width="1.6"/>
+  <text x="30" y="86" class="field">Pipistrelle commune vers 21h15, ciel clair.</text>
+
+  <line x1="20" y1="158" x2="540" y2="158" stroke="#e0e0e0"/>
+
+  <!-- Vue 2 : apercu -->
+  <text x="20" y="180" class="muted">Aperçu en direct</text>
+  <text x="130" y="180" class="id-tag">Vue 2 — #apercu ← noteProperty()</text>
+  <text x="20" y="202" class="ital">Pipistrelle commune vers 21h15, ciel clair.</text>
+
+  <!-- Vue 3 : compteur -->
+  <text x="20" y="232" class="count">43 caractères</text>
+  <text x="120" y="232" class="id-tag">Vue 3 — #compteur ← Bindings.concat(note.length(), …)</text>
+
+  <!-- Annotation -->
+  <text x="20" y="272" class="id-tag">une seule property « note » alimente les trois vues : taper dans la zone met</text>
+  <text x="20" y="288" class="id-tag">l'aperçu ET le compteur à jour, en direct (le cœur du bénéfice MVVM).</text>
+</svg>

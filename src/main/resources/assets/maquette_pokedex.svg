@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="500" viewBox="0 0 460 500">
+  <defs>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; }
+      .title { font-size: 15px; font-weight: bold; fill: #2c3e50; }
+      .th { font-size: 12px; font-weight: bold; fill: #2c3e50; }
+      .td { font-size: 12px; fill: #2c3e50; }
+      .muted { font-size: 12px; fill: #6a737d; }
+      .lab { font-size: 12px; fill: #2c3e50; }
+      .btn { font-size: 12px; font-weight: bold; fill: white; }
+      .ph { font-size: 12px; fill: #2c3e50; }
+      .id-tag { font-size: 10px; fill: #7f8c8d; font-style: italic; }
+    </style>
+  </defs>
+
+  <!-- Fond -->
+  <rect width="460" height="500" rx="8" ry="8" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1.5"/>
+  <text x="20" y="32" class="title">Mon Pokédex (ObservableList + TableView)</text>
+
+  <!-- TableView -->
+  <rect x="20" y="46" width="420" height="300" fill="white" stroke="#4a90d9" stroke-width="1.5"/>
+  <!-- En-tete -->
+  <rect x="20" y="46" width="420" height="26" fill="#e8eef5" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="32" y="64" class="th">N</text>
+  <text x="92" y="64" class="th">Nom</text>
+  <text x="302" y="64" class="th">Type</text>
+  <!-- Separateurs de colonnes -->
+  <line x1="80" y1="46" x2="80" y2="346" stroke="#e6e6e6"/>
+  <line x1="290" y1="46" x2="290" y2="346" stroke="#e6e6e6"/>
+
+  <!-- Ligne 1 selectionnee -->
+  <rect x="21" y="73" width="418" height="27" fill="#eaf3fb" stroke="#4a90d9" stroke-width="1"/>
+
+  <!-- Donnees -->
+  <text x="32" y="91" class="td">1</text>    <text x="92" y="91" class="td">Bulbizarre</text> <text x="302" y="91" class="td">Plante</text>
+  <text x="32" y="119" class="td">4</text>   <text x="92" y="119" class="td">Salamèche</text> <text x="302" y="119" class="td">Feu</text>
+  <text x="32" y="147" class="td">7</text>   <text x="92" y="147" class="td">Carapuce</text>  <text x="302" y="147" class="td">Eau</text>
+  <text x="32" y="175" class="td">25</text>  <text x="92" y="175" class="td">Pikachu</text>   <text x="302" y="175" class="td">Électrik</text>
+  <text x="32" y="203" class="td">133</text> <text x="92" y="203" class="td">Évoli</text>     <text x="302" y="203" class="td">Normal</text>
+  <text x="32" y="231" class="td">143</text> <text x="92" y="231" class="td">Ronflex</text>   <text x="302" y="231" class="td">Normal</text>
+
+  <!-- Separateurs de lignes -->
+  <g stroke="#eee">
+    <line x1="20" y1="100" x2="440" y2="100"/><line x1="20" y1="128" x2="440" y2="128"/>
+    <line x1="20" y1="156" x2="440" y2="156"/><line x1="20" y1="184" x2="440" y2="184"/>
+    <line x1="20" y1="212" x2="440" y2="212"/><line x1="20" y1="240" x2="440" y2="240"/>
+  </g>
+
+  <!-- Resume -->
+  <text x="20" y="368" class="muted">6 Pokémon</text>
+  <text x="92" y="368" class="id-tag">#labelResume ← Bindings.size(#table).asString()</text>
+
+  <!-- Formulaire d'ajout -->
+  <text x="20" y="394" class="lab">Ajouter un Pokémon par son nom :</text>
+  <rect x="20" y="404" width="320" height="30" rx="3" fill="white" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="31" y="423" class="ph">Dracaufeu</text>
+  <rect x="350" y="404" width="90" height="30" rx="4" fill="#27ae60" stroke="#1e8449" stroke-width="1"/>
+  <text x="395" y="423" text-anchor="middle" class="btn">Ajouter</text>
+
+  <!-- Annotation -->
+  <text x="20" y="466" class="id-tag">cliquer « Ajouter » insère la 7e ligne : l'ObservableList notifie la TableView</text>
+  <text x="20" y="482" class="id-tag">abonnée — aucun refresh() à écrire. Le bouton est vert dès qu'un nom est saisi.</text>
+</svg>
